@@ -40,11 +40,11 @@ if button:
                 history1 = stock1.history(start=start_date, end=end_date, interval="1d")
                 history2 = stock2.history(start=start_date, end=end_date, interval="1d")
 
-                # Format the Date column for both datasets
+                # Reset index and ensure the Date column is in datetime format
                 history1.reset_index(inplace=True)
-                history1["Date"] = history1["Date"].dt.strftime("%Y-%m-%d")
+                history1["Date"] = pd.to_datetime(history1["Date"]).dt.strftime("%Y-%m-%d")
                 history2.reset_index(inplace=True)
-                history2["Date"] = history2["Date"].dt.strftime("%Y-%m-%d")
+                history2["Date"] = pd.to_datetime(history2["Date"]).dt.strftime("%Y-%m-%d")
 
                 # Display historical data side by side
                 col1, col2 = st.columns(2)
