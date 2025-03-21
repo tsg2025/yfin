@@ -51,8 +51,13 @@ if button:
                 selected_period, interval = period_map.get(period, ("1mo", "1d"))
                 history = stock.history(period=selected_period, interval=interval)
                 
+                # Plot the historical closing prices
                 chart_data = pd.DataFrame(history["Close"])
                 st.line_chart(chart_data)
+
+                # Display historical data in a table
+                st.subheader("Historical Data")
+                st.dataframe(history)  # Display the entire history DataFrame
 
                 col1, col2, col3 = st.columns(3)
 
