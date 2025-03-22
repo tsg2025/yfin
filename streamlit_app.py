@@ -4,153 +4,93 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
+# Function to calculate z-score
+def calculate_zscore(series, lookback):
+    mean = series.rolling(window=lookback).mean()
+    std = series.rolling(window=lookback).std()
+    zscore = (series - mean) / std
+    return zscore
+
 # Function to calculate RSI
-def calculate_rsi(data, period=14):
-    delta = data.diff()
+def calculate_rsi(series, period):
+    delta = series.diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
     rs = gain / loss
     rsi = 100 - (100 / (1 + rs))
     return rsi
 
-# Streamlit app details
-st.set_page_config(page_title="Pair Trading Backtesting", layout="wide")
+# Streamlit app
+st.title("Pair Trading Backtesting")
 
-with st.sidebar:
-    st.title("Pair Trading Backtesting")
-    # Input for two stock tickers
-    ticker1 = st.text_input("Enter the first stock ticker (e.g. AAPL)", "AAPL")
-    ticker2 = st.text_input("Enter the second stock ticker (e.g. MSFT)", "MSFT")
-    # Input for lookback period
-    lookback_period = st.number_input("Enter lookback period for z-score calculation", min_value=1, value=30)
-    # Input for RSI period
-    rsi_period = st.number_input("Enter RSI period", min_value=1, value=14)
-    # Input for backtesting period
-    backtest_start_date = st.date_input("Select backtesting start date")
-    backtest_end_date = st.date_input("Select backtesting end date")
-    # Input for trade entry and exit deviations
-    entry_deviation = st.number_input("Enter trade entry deviation (e.g., 2.5)", value=2.5)
-    exit_deviation = st.number_input("Enter trade exit deviation (e.g., 1.5)", value=1.5)
-    button = st.button("Run Backtest")
+# Input boxes
+st.sidebar.header("Input Parameters")
+symbol1 = st.sidebar.text_input("Enter Stock Symbol 1", "AAPL")
+symbol2 = st.sidebar.text_input("Enter Stock Symbol 2", "MSFT")
+lookback = st.sidebar.number_input("Lookback Period for Z-Score", min_value=1, value=30)
+rsi_period = st.sidebar.number_input("RSI Period", min_value=1, value=14)
+from_date = st.sidebar.date_input("From Date", datetime(2020, 1, 1))  # User selects start date
+to_date = st.sidebar.date_input("To Date", datetime(2023, 1, 1))  # User selects end date
 
-# If Run Backtest button is clicked
-if button:
-    if not ticker1.strip() or not ticker2.strip():
-        st.error("Please provide valid stock tickers for both fields.")
-    elif backtest_start_date > backtest_end_date:
-        st.error("Backtesting start date must be before end date.")
+# Go button
+if st.sidebar.button("Go"):
+    if not symbol1.strip() or not symbol2.strip():
+        st.error("Please provide valid stock tickers.")
+    elif from_date > to_date:
+        st.error("Start date must be before end date.")
     else:
         try:
-            with st.spinner('Fetching data and running backtest...'):
-                # Fetch data for both tickers
-                stock1 = yf.Ticker(ticker1)
-                stock2 = yf.Ticker(ticker2)
-
-                # Fetch historical data for the backtesting period
-                history1 = stock1.history(start=backtest_start_date, end=backtest_end_date, interval="1d")
-                history2 = stock2.history(start=backtest_start_date, end=backtest_end_date, interval="1d")
-
-                # Align the data by date
-                aligned_data = pd.DataFrame({
-                    'Date': history1.index,
-                    f'{ticker1}_Close': history1['Close'],
-                    f'{ticker2}_Close': history2['Close']
-                }).dropna()
-
-                # Calculate the ratio between the two stocks
-                aligned_data['Ratio'] = aligned_data[f'{ticker1}_Close'] / aligned_data[f'{ticker2}_Close']
-
-                # Calculate the z-score of the ratio
-                aligned_data['Ratio_Mean'] = aligned_data['Ratio'].rolling(window=lookback_period).mean()
-                aligned_data['Ratio_Std'] = aligned_data['Ratio'].rolling(window=lookback_period).std()
-                aligned_data['Z-Score'] = (aligned_data['Ratio'] - aligned_data['Ratio_Mean']) / aligned_data['Ratio_Std']
-
-                # Calculate RSI of the spread
-                aligned_data['RSI'] = calculate_rsi(aligned_data['Z-Score'], period=rsi_period)
-
-                # Backtesting logic
-                trades = []
-                in_position = False
-                entry_price_stock1 = None
-                entry_price_stock2 = None
-                entry_date = None
-                trade_type = None
-                max_loss = 0
-
-                for i in range(len(aligned_data)):
-                    if not in_position and aligned_data['Z-Score'].iloc[i] > entry_deviation:
-                        # Enter Short Ratio trade
-                        trade_type = "Short Ratio"
-                        entry_price_stock1 = aligned_data[f'{ticker1}_Close'].iloc[i]
-                        entry_price_stock2 = aligned_data[f'{ticker2}_Close'].iloc[i]
-                        entry_date = aligned_data['Date'].iloc[i]
-                        in_position = True
-                        max_loss = 0
-                    elif not in_position and aligned_data['Z-Score'].iloc[i] < -entry_deviation:
-                        # Enter Long Ratio trade
-                        trade_type = "Long Ratio"
-                        entry_price_stock1 = aligned_data[f'{ticker1}_Close'].iloc[i]
-                        entry_price_stock2 = aligned_data[f'{ticker2}_Close'].iloc[i]
-                        entry_date = aligned_data['Date'].iloc[i]
-                        in_position = True
-                        max_loss = 0
-                    elif in_position and abs(aligned_data['Z-Score'].iloc[i]) < exit_deviation:
-                        # Exit trade
-                        exit_price_stock1 = aligned_data[f'{ticker1}_Close'].iloc[i]
-                        exit_price_stock2 = aligned_data[f'{ticker2}_Close'].iloc[i]
-                        exit_date = aligned_data['Date'].iloc[i]
-
-                        # Calculate profit percentage
-                        if trade_type == "Long Ratio":
-                            profit_pct = ((exit_price_stock1 - entry_price_stock1) / entry_price_stock1) - \
-                                         ((exit_price_stock2 - entry_price_stock2) / entry_price_stock2)
-                        elif trade_type == "Short Ratio":
-                            profit_pct = ((entry_price_stock2 - exit_price_stock2) / entry_price_stock2) - \
-                                         ((entry_price_stock1 - exit_price_stock1) / entry_price_stock1)
-
-                        # Calculate holding period
-                        holding_period = (exit_date - entry_date).days
-
-                        # Add trade to trades list
-                        trades.append({
-                            'Entry Date': entry_date,
-                            'Exit Date': exit_date,
-                            'Trade Type': trade_type,
-                            'Profit %': profit_pct * 100,
-                            'Holding Period': holding_period,
-                            'Max Loss': max_loss * 100
-                        })
-
-                        # Reset trade variables
-                        in_position = False
-                        entry_price_stock1 = None
-                        entry_price_stock2 = None
-                        entry_date = None
-                        trade_type = None
-                        max_loss = 0
-
-                    # Update max loss during the trade
-                    if in_position:
-                        current_profit = 0
-                        if trade_type == "Long Ratio":
-                            current_profit = ((aligned_data[f'{ticker1}_Close'].iloc[i] - entry_price_stock1) / entry_price_stock1) - \
-                                             ((aligned_data[f'{ticker2}_Close'].iloc[i] - entry_price_stock2) / entry_price_stock2)
-                        elif trade_type == "Short Ratio":
-                            current_profit = ((entry_price_stock2 - aligned_data[f'{ticker2}_Close'].iloc[i]) / entry_price_stock2) - \
-                                             ((entry_price_stock1 - aligned_data[f'{ticker1}_Close'].iloc[i]) / entry_price_stock1)
-                        if current_profit < max_loss:
-                            max_loss = current_profit
-
-                # Convert trades list to a DataFrame
-                trades_df = pd.DataFrame(trades)
-
-                # Display results
-                st.subheader("Trades Table")
-                st.dataframe(trades_df)
-
-                # Plot the Z-Score and trades
-                st.subheader("Z-Score and Trades")
-                st.line_chart(aligned_data.set_index('Date')[['Z-Score']])
-
+            with st.spinner('Fetching data...'):
+                # Fetch data for symbol1
+                stock1 = yf.Ticker(symbol1)
+                info1 = stock1.info
+                data1 = stock1.history(start=from_date, end=to_date, interval="1d")
+                
+                # Fetch data for symbol2
+                stock2 = yf.Ticker(symbol2)
+                info2 = stock2.info
+                data2 = stock2.history(start=from_date, end=to_date, interval="1d")
+                
+                # Check if data is empty
+                if data1.empty or data2.empty:
+                    st.error(f"Failed to fetch data for {symbol1} or {symbol2}. Please check the ticker symbols and try again.")
+                else:
+                    # Calculate ratio, z-score, and RSI
+                    data1['Close'] = data1['Close']
+                    data2['Close'] = data2['Close']
+                    ratio = data1['Close'] / data2['Close']
+                    zscore = calculate_zscore(ratio, lookback)
+                    rsi = calculate_rsi(data1['Close'], rsi_period)
+                    
+                    # Combine data into a single DataFrame for the table
+                    results = pd.DataFrame({
+                        'Date': data1.index,
+                        f'{symbol1} Close': data1['Close'],
+                        f'{symbol2} Close': data2['Close'],
+                        'Ratio': ratio,
+                        'Z-Score': zscore,
+                        'RSI': rsi
+                    })
+                    
+                    # Display results
+                    st.subheader("Backtest Results")
+                    st.write(f"#### {symbol1} - {info1.get('longName', 'N/A')}")
+                    st.write(f"#### {symbol2} - {info2.get('longName', 'N/A')}")
+                    
+                    st.write("### Data Table")
+                    st.dataframe(results)
+                    
+                    st.write("### Z-Score Series")
+                    st.line_chart(zscore)
+                    
+                    st.write("### RSI Series")
+                    st.line_chart(rsi)
+                    
+                    st.write("### Stock Prices")
+                    st.write(f"#### {symbol1} Close Prices")
+                    st.line_chart(data1['Close'])
+                    st.write(f"#### {symbol2} Close Prices")
+                    st.line_chart(data2['Close'])
+                    
         except Exception as e:
-            st.exception(f"An error occurred: {e}")
+            st.error(f"An error occurred: {e}")
