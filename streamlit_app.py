@@ -185,15 +185,15 @@ if button:
 
                 # Display the stock price, z-score, and RSI table
                 st.subheader("Stock Prices, Z-Score, and RSI")
-                st.dataframe(aligned_data[['Date', f'{ticker1}_Close', f'{ticker2}_Close', 'Ratio', 'Z-Score', 'RSI']])
+                st.dataframe(aligned_data[['Date', f'{ticker1}_Close', f'{ticker2}_Close', 'Ratio', 'Z-Score', 'RSI']].reset_index(drop=True))
 
                 # Display the trades table
                 st.subheader("Trades Table")
-                st.dataframe(trades_df)
+                st.dataframe(trades_df.reset_index(drop=True))
 
                 # Display the trade summary
                 st.subheader("Trade Summary")
-                st.dataframe(trade_summary)
+                st.dataframe(trade_summary.reset_index(drop=True))
 
                 # Plot the Z-Score and trades
                 st.subheader("Z-Score and Trades")
