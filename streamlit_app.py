@@ -57,6 +57,9 @@ if button:
                     f'{ticker2}_Close': history2['Close']
                 }).dropna()
 
+                # Format the Date column to show only YYYY-MM-DD
+                aligned_data['Date'] = aligned_data['Date'].dt.strftime('%Y-%m-%d')
+
                 # Calculate the ratio between the two stocks
                 aligned_data['Ratio'] = aligned_data[f'{ticker1}_Close'] / aligned_data[f'{ticker2}_Close']
 
@@ -109,7 +112,7 @@ if button:
                                          ((entry_price_stock1 - exit_price_stock1) / entry_price_stock1)
 
                         # Calculate holding period
-                        holding_period = (exit_date - entry_date).days
+                        holding_period = (pd.to_datetime(exit_date) - pd.to_datetime(entry_date)).days
 
                         # Add trade to trades list
                         trades.append({
