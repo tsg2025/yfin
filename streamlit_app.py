@@ -13,14 +13,22 @@ def calculate_rsi(data, period=14):
     rsi = 100 - (100 / (1 + rs))
     return rsi
 
+# Read the symbol list from fosymbols.csv
+try:
+    symbol_df = pd.read_csv("fosymbols.csv")
+    symbol_list = symbol_df['Symbol'].tolist()  # Assuming the CSV has a column named 'Symbol'
+except Exception as e:
+    st.error(f"Error reading fosymbols.csv: {e}")
+    symbol_list = ["AAPL", "MSFT"]  # Fallback to default symbols if CSV is not found
+
 # Streamlit app details
 st.set_page_config(page_title="Pair Trading Backtesting", layout="wide")
 
 with st.sidebar:
     st.title("Pair Trading Backtesting")
-    # Input for two stock tickers
-    ticker1 = st.text_input("Enter the first stock ticker (e.g. AAPL)", "AAPL")
-    ticker2 = st.text_input("Enter the second stock ticker (e.g. MSFT)", "MSFT")
+    # Input for two stock tickers using dropdown
+    ticker1 = st.selectbox("Select the first stock ticker", symbol_list, index=0)
+    ticker2 = st.selectbox("Select the second stock ticker", symbol_list, index=1)
     # Input for lookback period
     lookback_period = st.number_input("Enter lookback period for z-score calculation", min_value=1, value=30)
     # Input for RSI period
@@ -175,29 +183,4 @@ if button:
                         'Total Short Trades', 'Short Win Rate (%)', 'Short Lose Rate (%)',
                         'Max Drawdown ($)', 'Profit Factor'
                     ],
-                    'Value': [
-                        total_trades, win_rate, lose_rate,
-                        total_long_trades, long_win_rate, long_lose_rate,
-                        total_short_trades, short_win_rate, short_lose_rate,
-                        max_drawdown, profit_factor
-                    ]
-                })
-
-                # Display the stock price, z-score, and RSI table
-                st.subheader("Stock Prices, Z-Score, and RSI")
-                st.dataframe(aligned_data[['Date', f'{ticker1}_Close', f'{ticker2}_Close', 'Ratio', 'Z-Score', 'RSI']].reset_index(drop=True))
-
-                # Display the trades table
-                st.subheader("Trades Table")
-                st.dataframe(trades_df.reset_index(drop=True))
-
-                # Display the trade summary
-                st.subheader("Trade Summary")
-                st.dataframe(trade_summary.reset_index(drop=True))
-
-                # Plot the Z-Score and trades
-                st.subheader("Z-Score and Trades")
-                st.line_chart(aligned_data.set_index('Date')[['Z-Score']])
-
-        except Exception as e:
-            st.exception(f"An error occurred: {e}")
+                    'Value':
