@@ -144,6 +144,42 @@ if button:
                 # Convert trades list to a DataFrame
                 trades_df = pd.DataFrame(trades)
 
+                # Calculate Trade Summary Metrics
+                total_trades = len(trades_df)
+                winning_trades = trades_df[trades_df['Profit %'] > 0]
+                losing_trades = trades_df[trades_df['Profit %'] <= 0]
+                win_rate = len(winning_trades) / total_trades * 100 if total_trades > 0 else 0
+                lose_rate = len(losing_trades) / total_trades * 100 if total_trades > 0 else 0
+
+                long_trades = trades_df[trades_df['Trade Type'] == "Long Ratio"]
+                total_long_trades = len(long_trades)
+                long_win_rate = len(long_trades[long_trades['Profit %'] > 0]) / total_long_trades * 100 if total_long_trades > 0 else 0
+                long_lose_rate = len(long_trades[long_trades['Profit %'] <= 0]) / total_long_trades * 100 if total_long_trades > 0 else 0
+
+                short_trades = trades_df[trades_df['Trade Type'] == "Short Ratio"]
+                total_short_trades = len(short_trades)
+                short_win_rate = len(short_trades[short_trades['Profit %'] > 0]) / total_short_trades * 100 if total_short_trades > 0 else 0
+                short_lose_rate = len(short_trades[short_trades['Profit %'] <= 0]) / total_short_trades * 100 if total_short_trades > 0 else 0
+
+                max_drawdown = trades_df['Max Loss'].min() if not trades_df.empty else 0
+                profit_factor = winning_trades['Profit %'].sum() / abs(losing_trades['Profit %'].sum()) if not losing_trades.empty else 0
+
+                # Create Trade Summary DataFrame
+                trade_summary = pd.DataFrame({
+                    'Metric': [
+                        'Total Trades', 'Win Rate (%)', 'Lose Rate (%)',
+                        'Total Long Trades', 'Long Win Rate (%)', 'Long Lose Rate (%)',
+                        'Total Short Trades', 'Short Win Rate (%)', 'Short Lose Rate (%)',
+                        'Max Drawdown ($)', 'Profit Factor'
+                    ],
+                    'Value': [
+                        total_trades, win_rate, lose_rate,
+                        total_long_trades, long_win_rate, long_lose_rate,
+                        total_short_trades, short_win_rate, short_lose_rate,
+                        max_drawdown, profit_factor
+                    ]
+                })
+
                 # Display the stock price, z-score, and RSI table
                 st.subheader("Stock Prices, Z-Score, and RSI")
                 st.dataframe(aligned_data[['Date', f'{ticker1}_Close', f'{ticker2}_Close', 'Ratio', 'Z-Score', 'RSI']])
@@ -151,6 +187,10 @@ if button:
                 # Display the trades table
                 st.subheader("Trades Table")
                 st.dataframe(trades_df)
+
+                # Display the trade summary
+                st.subheader("Trade Summary")
+                st.dataframe(trade_summary)
 
                 # Plot the Z-Score and trades
                 st.subheader("Z-Score and Trades")
