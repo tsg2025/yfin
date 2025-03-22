@@ -183,4 +183,29 @@ if button:
                         'Total Short Trades', 'Short Win Rate (%)', 'Short Lose Rate (%)',
                         'Max Drawdown ($)', 'Profit Factor'
                     ],
-                    'Value':
+                    'Value': [
+                        total_trades, win_rate, lose_rate,
+                        total_long_trades, long_win_rate, long_lose_rate,
+                        total_short_trades, short_win_rate, short_lose_rate,
+                        max_drawdown, profit_factor
+                    ]
+                })
+
+                # Display the stock price, z-score, and RSI table
+                st.subheader("Stock Prices, Z-Score, and RSI")
+                st.dataframe(aligned_data[['Date', f'{ticker1}_Close', f'{ticker2}_Close', 'Ratio', 'Z-Score', 'RSI']].reset_index(drop=True))
+
+                # Display the trades table
+                st.subheader("Trades Table")
+                st.dataframe(trades_df.reset_index(drop=True))
+
+                # Display the trade summary
+                st.subheader("Trade Summary")
+                st.dataframe(trade_summary.reset_index(drop=True))
+
+                # Plot the Z-Score and trades
+                st.subheader("Z-Score and Trades")
+                st.line_chart(aligned_data.set_index('Date')[['Z-Score']])
+
+        except Exception as e:
+            st.exception(f"An error occurred: {e}")
