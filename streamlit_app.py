@@ -204,7 +204,7 @@ if button:
                 st.dataframe(trade_summary.reset_index(drop=True))
 
                 # Plot the Z-Score and trades
-                st.subheader("Z-Score and Trades")
+                st.subheader("Z-Score")
                 st.line_chart(aligned_data.set_index('Date')[['Z-Score']])
 
         except Exception as e:
