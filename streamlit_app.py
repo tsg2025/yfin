@@ -2,7 +2,7 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Function to calculate RSI
 def calculate_rsi(data, period=14):
@@ -26,8 +26,8 @@ with st.sidebar:
     # Input for RSI period
     rsi_period = st.number_input("Enter RSI period", min_value=1, value=14)
     # Input for backtesting period
-    backtest_start_date = st.date_input("Select backtesting start date")
-    backtest_end_date = st.date_input("Select backtesting end date")
+    backtest_end_date = st.date_input("Select backtesting end date", datetime.today())
+    backtest_start_date = st.date_input("Select backtesting start date", backtest_end_date - timedelta(days=365))
     # Input for trade entry and exit deviations
     entry_deviation = st.number_input("Enter trade entry deviation (e.g., 2.5)", value=2.5)
     exit_deviation = st.number_input("Enter trade exit deviation (e.g., 1.5)", value=1.5)
