@@ -69,33 +69,88 @@ if button:
                 aligned_data['RSI'] = calculate_rsi(aligned_data['Z-Score'], period=rsi_period)
 
                 # Backtesting logic
-                aligned_data['Position'] = 0
-                aligned_data['Trade'] = 0
+                trades = []
                 in_position = False
+                entry_price_stock1 = None
+                entry_price_stock2 = None
+                entry_date = None
+                trade_type = None
+                max_loss = 0
 
                 for i in range(len(aligned_data)):
                     if not in_position and aligned_data['Z-Score'].iloc[i] > entry_deviation:
-                        aligned_data['Position'].iloc[i] = -1  # Short the spread
-                        aligned_data['Trade'].iloc[i] = 1  # Trade entry
+                        # Enter Short Ratio trade
+                        trade_type = "Short Ratio"
+                        entry_price_stock1 = aligned_data[f'{ticker1}_Close'].iloc[i]
+                        entry_price_stock2 = aligned_data[f'{ticker2}_Close'].iloc[i]
+                        entry_date = aligned_data['Date'].iloc[i]
                         in_position = True
+                        max_loss = 0
                     elif not in_position and aligned_data['Z-Score'].iloc[i] < -entry_deviation:
-                        aligned_data['Position'].iloc[i] = 1  # Long the spread
-                        aligned_data['Trade'].iloc[i] = 1  # Trade entry
+                        # Enter Long Ratio trade
+                        trade_type = "Long Ratio"
+                        entry_price_stock1 = aligned_data[f'{ticker1}_Close'].iloc[i]
+                        entry_price_stock2 = aligned_data[f'{ticker2}_Close'].iloc[i]
+                        entry_date = aligned_data['Date'].iloc[i]
                         in_position = True
+                        max_loss = 0
                     elif in_position and abs(aligned_data['Z-Score'].iloc[i]) < exit_deviation:
-                        aligned_data['Position'].iloc[i] = 0  # Exit the trade
-                        aligned_data['Trade'].iloc[i] = -1  # Trade exit
+                        # Exit trade
+                        exit_price_stock1 = aligned_data[f'{ticker1}_Close'].iloc[i]
+                        exit_price_stock2 = aligned_data[f'{ticker2}_Close'].iloc[i]
+                        exit_date = aligned_data['Date'].iloc[i]
+
+                        # Calculate profit percentage
+                        if trade_type == "Long Ratio":
+                            profit_pct = ((exit_price_stock1 - entry_price_stock1) / entry_price_stock1) - \
+                                         ((exit_price_stock2 - entry_price_stock2) / entry_price_stock2)
+                        elif trade_type == "Short Ratio":
+                            profit_pct = ((entry_price_stock2 - exit_price_stock2) / entry_price_stock2) - \
+                                         ((entry_price_stock1 - exit_price_stock1) / entry_price_stock1)
+
+                        # Calculate holding period
+                        holding_period = (exit_date - entry_date).days
+
+                        # Add trade to trades list
+                        trades.append({
+                            'Entry Date': entry_date,
+                            'Exit Date': exit_date,
+                            'Trade Type': trade_type,
+                            'Profit %': profit_pct * 100,
+                            'Holding Period': holding_period,
+                            'Max Loss': max_loss * 100
+                        })
+
+                        # Reset trade variables
                         in_position = False
+                        entry_price_stock1 = None
+                        entry_price_stock2 = None
+                        entry_date = None
+                        trade_type = None
+                        max_loss = 0
+
+                    # Update max loss during the trade
+                    if in_position:
+                        current_profit = 0
+                        if trade_type == "Long Ratio":
+                            current_profit = ((aligned_data[f'{ticker1}_Close'].iloc[i] - entry_price_stock1) / entry_price_stock1) - \
+                                             ((aligned_data[f'{ticker2}_Close'].iloc[i] - entry_price_stock2) / entry_price_stock2)
+                        elif trade_type == "Short Ratio":
+                            current_profit = ((entry_price_stock2 - aligned_data[f'{ticker2}_Close'].iloc[i]) / entry_price_stock2) - \
+                                             ((entry_price_stock1 - aligned_data[f'{ticker1}_Close'].iloc[i]) / entry_price_stock1)
+                        if current_profit < max_loss:
+                            max_loss = current_profit
+
+                # Convert trades list to a DataFrame
+                trades_df = pd.DataFrame(trades)
 
                 # Display results
-                st.subheader("Backtesting Results")
-                st.dataframe(aligned_data[['Date', f'{ticker1}_Close', f'{ticker2}_Close', 'Ratio', 'Z-Score', 'RSI', 'Position', 'Trade']])
+                st.subheader("Trades Table")
+                st.dataframe(trades_df)
 
                 # Plot the Z-Score and trades
                 st.subheader("Z-Score and Trades")
                 st.line_chart(aligned_data.set_index('Date')[['Z-Score']])
-                st.write("Trades:")
-                st.write(aligned_data[aligned_data['Trade'] != 0][['Date', 'Trade']])
 
         except Exception as e:
             st.exception(f"An error occurred: {e}")
